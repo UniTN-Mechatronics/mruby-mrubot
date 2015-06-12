@@ -265,7 +265,7 @@ static mrb_value mrb_newton_solve(mrb_state *mrb, mrb_value self) {
   if (!mrb_nil_p(block)) {
    block_args = mrb_ary_new_capa(mrb, 2);
   }
- 
+  x1 = 0;
   for (itr = 0; itr < max_iter; itr++) {
     y = mrb_to_flo(mrb,
                    mrb_funcall(mrb, f, "call", 1, mrb_float_value(mrb, x0)));
