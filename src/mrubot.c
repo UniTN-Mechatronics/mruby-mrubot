@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <math.h>
+#include <unistd.h>
 
 #include "mruby.h"
 #include "mruby/variable.h"
@@ -249,9 +250,9 @@ static mrb_value mrb_newton_solve(mrb_state *mrb, mrb_value self) {
   mrb_value f, fd;
   mrb_value block = mrb_nil_value();
   mrb_value block_args;
-  
+
   mrb_int nargs = mrb_get_args(mrb, "|f&", &x0, &block);
-  
+
   if (nargs == 0) {
     x0 = mrb_to_flo(mrb, mrb_iv_get(mrb, self, mrb_intern_lit(mrb, "@x0")));
   }
@@ -261,9 +262,9 @@ static mrb_value mrb_newton_solve(mrb_state *mrb, mrb_value self) {
       mrb_fixnum(mrb_iv_get(mrb, self, mrb_intern_lit(mrb, "@max_iter")));
   f = mrb_iv_get(mrb, self, mrb_intern_lit(mrb, "@f"));
   fd = mrb_iv_get(mrb, self, mrb_intern_lit(mrb, "@fd"));
-  
+
   if (!mrb_nil_p(block)) {
-   block_args = mrb_ary_new_capa(mrb, 2);
+    block_args = mrb_ary_new_capa(mrb, 2);
   }
   x1 = 0;
   for (itr = 0; itr < max_iter; itr++) {
@@ -273,14 +274,14 @@ static mrb_value mrb_newton_solve(mrb_state *mrb, mrb_value self) {
                     mrb_funcall(mrb, fd, "call", 1, mrb_float_value(mrb, x0)));
     h = y / yd;
     x1 = x0 - h;
-    
+
     if (!mrb_nil_p(block)) {
       mrb_ary_set(mrb, block_args, 0, mrb_fixnum_value(itr));
       mrb_ary_set(mrb, block_args, 1, mrb_float_value(mrb, x1));
       mrb_ary_set(mrb, block_args, 2, mrb_float_value(mrb, y));
       mrb_yield(mrb, block, block_args);
     }
-    
+
     if (fabs(h) < max_error) {
       break;
     }
@@ -298,9 +299,27 @@ static mrb_value mrb_process_getPeakRSS(mrb_state *mrb, mrb_value self) {
   return mrb_fixnum_value(getPeakRSS());
 }
 
+static mrb_value mrb_kernel_daemon(mrb_state *mrb, mrb_value self) {
+  mrb_bool nochdir, noclose;
+  mrb_int nargs = mrb_get_args(mrb, "|bb", &nochdir, &noclose);
+  if (nargs == 1) {
+    noclose = 1;
+  } else if (nargs == 0) {
+    nochdir = 1;
+    noclose = 1;
+  }
+  if (0 != daemon(nochdir, noclose))
+    mrb_raisef(mrb, E_RUNTIME_ERROR, "Could not daemonize.\n%S",
+               mrb_str_new_cstr(mrb, strerror(errno)));
+  return mrb_true_value();
+}
+
 void mrb_mruby_mrubot_gem_init(mrb_state *mrb) {
   struct RClass *process_mod, *mrubot_mod;    // Modules
   struct RClass *mrubot, *ballistic, *newton; // Classes
+  mrb_define_method(mrb, mrb->kernel_module, "daemon", mrb_kernel_daemon,
+                    MRB_ARGS_OPT(2));
+
   mrubot_mod = mrb_define_module(mrb, "Mrubot");
 
   ballistic =
