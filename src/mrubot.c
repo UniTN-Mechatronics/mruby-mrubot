@@ -1,8 +1,8 @@
 /***************************************************************************/
 /*                                                                         */
-/* mrubot.c - mruby testing                                                  */
-/* Copyright (C) 2015 Paolo Bosetti and Matteo Ragni,                      */
-/* paolo[dot]bosetti[at]unitn.it and matteo[dot]ragni[at]unitn.it          */
+/* mrubot.c - mruby testing                                                */
+/* Copyright (C) 2015 Paolo Bosetti                                        */
+/* paolo[dot]bosetti[at]unitn.it                                           */
 /* Department of Industrial Engineering, University of Trento              */
 /*                                                                         */
 /* This library is free software.  You can redistribute it and/or          */
@@ -23,7 +23,8 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <math.h>
-#include <unistd.h>
+#include <sys/param.h>
+#include <time.h>
 
 #include "mruby.h"
 #include "mruby/variable.h"
@@ -314,9 +315,54 @@ static mrb_value mrb_kernel_daemon(mrb_state *mrb, mrb_value self) {
   return mrb_true_value();
 }
 
+static mrb_value mrb_kernel_daemon(mrb_state *mrb, mrb_value self) {
+  char buf[MAXPATHLEN];
+  mrb_value result;
+  int daemonized;
+  mrb_bool nochdir = 0, noclose = 0;
+  mrb_get_args(mrb, "|bb", &nochdir, &noclose);
+  result = mrb_ary_new_capa(mrb, 2);
+  daemonized = daemon(nochdir, noclose);
+  getcwd(buf, MAXPATHLEN);
+  mrb_ary_push(mrb, result, mrb_fixnum_value(daemonized));
+  mrb_ary_push(mrb, result, mrb_str_new_cstr(mrb, buf));
+  mrb_gv_set(mrb, mrb_intern_lit(mrb, "$PID"), mrb_fixnum_value(getpid()));
+  mrb_gv_set(mrb, mrb_intern_lit(mrb, "$PPID"), mrb_fixnum_value(getppid()));
+  return result;
+}
+
+static mrb_value mrb_kernel_sleep(mrb_state *mrb, mrb_value self) {
+  mrb_float period;
+  struct timespec ts = {}, rts = {};
+  mrb_get_args(mrb, "f", &period);
+
+  ts.tv_sec = (mrb_int)period;
+  ts.tv_nsec = (mrb_int)((period - ts.tv_sec) * 1e9);
+  if (0 != nanosleep(&ts, &rts)) {
+    double actual = rts.tv_sec + rts.tv_nsec / (double)1e9;
+    mrb_value actual_v = mrb_float_value(mrb, actual);
+    char *buf = NULL;
+    asprintf(&buf, "Sleep interrupted (errno: '%s'). Slept for %f s",
+             strerror(errno), actual);
+    mrb_value exc =
+        mrb_exc_new(mrb, mrb_class_get(mrb, "SleepError"), buf, strlen(buf));
+    mrb_iv_set(mrb, exc, mrb_intern_lit(mrb, "@actual"), actual_v);
+    free(buf);
+    mrb_exc_raise(mrb, exc);
+  }
+  return mrb_float_value(mrb, 0);
+}
+
 void mrb_mruby_mrubot_gem_init(mrb_state *mrb) {
   struct RClass *process_mod, *mrubot_mod;    // Modules
   struct RClass *mrubot, *ballistic, *newton; // Classes
+  // Kernel methods:
+  mrb_define_method(mrb, mrb->kernel_module, "daemon", mrb_kernel_daemon,
+                    MRB_ARGS_OPT(2));
+  mrb_define_method(mrb, mrb->kernel_module, "sleep", mrb_kernel_sleep,
+                    MRB_ARGS_REQ(1));
+  mrb_load_string(mrb,
+                  "class SleepError < Exception; attr_reader :actual; end");
   mrb_define_method(mrb, mrb->kernel_module, "daemon", mrb_kernel_daemon,
                     MRB_ARGS_OPT(2));
 
