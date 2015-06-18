@@ -34,6 +34,7 @@
 #include "mruby/value.h"
 #include "mruby/array.h"
 #include "mruby/numeric.h"
+#include "mruby/compile.h"
 
 #include "memory.h"
 
