@@ -300,20 +300,7 @@ static mrb_value mrb_process_getPeakRSS(mrb_state *mrb, mrb_value self) {
   return mrb_fixnum_value(getPeakRSS());
 }
 
-static mrb_value mrb_kernel_daemon(mrb_state *mrb, mrb_value self) {
-  mrb_bool nochdir, noclose;
-  mrb_int nargs = mrb_get_args(mrb, "|bb", &nochdir, &noclose);
-  if (nargs == 1) {
-    noclose = 1;
-  } else if (nargs == 0) {
-    nochdir = 1;
-    noclose = 1;
-  }
-  if (0 != daemon(nochdir, noclose))
-    mrb_raisef(mrb, E_RUNTIME_ERROR, "Could not daemonize.\n%S",
-               mrb_str_new_cstr(mrb, strerror(errno)));
-  return mrb_true_value();
-}
+
 
 static mrb_value mrb_kernel_daemon(mrb_state *mrb, mrb_value self) {
   char buf[MAXPATHLEN];
