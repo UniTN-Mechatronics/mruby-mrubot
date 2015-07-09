@@ -21,6 +21,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#define _GNU_SOURCE 
 #include <stdio.h>
 #include <math.h>
 #include <sys/param.h>
@@ -329,13 +330,13 @@ static mrb_value mrb_kernel_sleep(mrb_state *mrb, mrb_value self) {
   if (0 != nanosleep(&ts, &rts)) {
     double actual = rts.tv_sec + rts.tv_nsec / (double)1e9;
     mrb_value actual_v = mrb_float_value(mrb, actual);
-    char *buf = NULL;
-    asprintf(&buf, "Sleep interrupted (errno: '%s'). Slept for %f s",
+    mrb_value exc;
+    char buf[256];
+    snprintf(buf, 256, "Sleep interrupted (errno: '%s'). Slept for %f s",
              strerror(errno), actual);
-    mrb_value exc =
+    exc =
         mrb_exc_new(mrb, mrb_class_get(mrb, "SleepError"), buf, strlen(buf));
     mrb_iv_set(mrb, exc, mrb_intern_lit(mrb, "@actual"), actual_v);
-    free(buf);
     mrb_exc_raise(mrb, exc);
   }
   return mrb_float_value(mrb, 0);
